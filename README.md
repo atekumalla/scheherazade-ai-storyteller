@@ -65,7 +65,9 @@ scheherazade is an AI storyteller. It uses LLMs to generate a short bedtime stor
 
 ## Usage
 
-
+- Start a conversation with the Scheherazade by giving it some information about a story you want to be created and the age of the audience.
+- The application will process your input, generate a story and return it to you.
+- You can converse with the application and ask it to modify the story in any way you like, refine it, add or remove elements and even convert it into a poem!
 
 ## Key Components
 
