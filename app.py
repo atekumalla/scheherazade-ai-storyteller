@@ -45,7 +45,7 @@ client = wrap_openai(openai.AsyncClient(api_key=config["api_key"], base_url=conf
 gen_kwargs = {
     "model": config["model"],
     "temperature": 1.0,
-    "max_tokens": 500
+    "max_tokens": 1500
 }
 
 # Configuration setting to enable or disable the system prompt
