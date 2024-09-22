@@ -16,7 +16,7 @@ client = OpenAI()
 # Function to generate questions and answers
 def generate_qa(prompt, text, temperature=0.2):    
     response = client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": text}],
