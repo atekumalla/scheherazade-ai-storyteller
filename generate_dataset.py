@@ -11,6 +11,13 @@ documents = SimpleDirectoryReader("data").load_data()
 from openai import OpenAI
 import json
 
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+def recursive_character_splitting(text, chunk_size, chunk_overlap):
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    chunks = text_splitter.split_text(text)
+    return chunks
+
 client = OpenAI()
 
 # Function to generate questions and answers
@@ -79,9 +86,14 @@ if os.path.exists(dataset_file):
 else:
     # Generate dataset if local file doesn't exist
     dataset = []
+
     for doc in documents:
-        qa_pairs = generate_qa(factual_prompt, doc.text, temperature=0.2)
-        dataset.extend(qa_pairs)
+        # Split the text
+        chunks = recursive_character_splitting(doc.text, 100, 0)
+        for i, chunk in enumerate(chunks):
+            print(f"Chunk {i+1}:\n{chunk}\n")
+            qa_pairs = generate_qa(factual_prompt, chunk, temperature=0.2)
+            dataset.extend(qa_pairs)
     
     # Write dataset to local file
     with open(dataset_file, 'w') as f:
