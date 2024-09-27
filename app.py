@@ -34,7 +34,7 @@ configurations = {
 # Choose configuration
 config_key = "openai_gpt-4"
 # config_key = "mistral_7B_instruct"
-#config_key = "mistral_7B"
+# config_key = "mistral_7B"
 
 # Get selected configuration
 config = configurations[config_key]
@@ -44,8 +44,8 @@ client = wrap_openai(openai.AsyncClient(api_key=config["api_key"], base_url=conf
 
 gen_kwargs = {
     "model": config["model"],
-    "temperature": 1.0,
-    "max_tokens": 1500
+    "temperature": 0.3,
+    "max_tokens": 1000
 }
 
 # Configuration setting to enable or disable the system prompt
