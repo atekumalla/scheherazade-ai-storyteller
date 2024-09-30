@@ -44,7 +44,7 @@ After generating the story, ask the user if they wish to have a storybook illust
 
 IMAGE_GENERATION_PROMPT = """
 
-After generating the story, ask the user if they wish to have a storybook illustration for the story. If they say yes, divide the story into paragraphs, where each paragraph goes onto one page of the storybook. Try to stick to around 10 pages and do not exceed of 15.
+If the user wishes to have a storybook illustration for the story, divide the story into paragraphs, where each paragraph goes onto one page of the storybook. Try to stick to around 10 pages and do not exceed of 15.
 After dividing the story into paragraphs, generate a function call to get_storybook_illustration() with the follwing arguments in a json format.
 1. Title of the story
 2. Characters in the story: This should be a list of all the characters in the story
