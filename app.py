@@ -59,6 +59,33 @@ def get_latest_user_message(message_history):
             return message['content']
     return None
 
+async def generate_mistral_7B_response(client, message, gen_kwargs):
+    response_message = cl.Message(content="")
+    await response_message.send()
+
+    stream = await client.completions.create(prompt=message.content, stream=True, **gen_kwargs)
+    async for part in stream:
+        if token := part.choices[0].text or "":
+            await response_message.stream_token(token)
+    
+    await response_message.update()
+
+    return response_message
+
+
+async def generate_response(client, message_history, gen_kwargs):
+    response_message = cl.Message(content="")
+    await response_message.send()
+
+    stream = await client.chat.completions.create(messages=message_history, stream=True, **gen_kwargs)
+    async for part in stream:
+        if token := part.choices[0].delta.content or "":
+            await response_message.stream_token(token)
+    
+    await response_message.update()
+
+    return response_message
+    
 @traceable
 @cl.on_message
 async def on_message(message: cl.Message):
@@ -70,23 +97,37 @@ async def on_message(message: cl.Message):
 
     message_history.append({"role": "user", "content": message.content})
 
-    response_message = cl.Message(content="")
-    await response_message.send()
-
     if config_key == "mistral_7B":
-        stream = await client.completions.create(prompt=message.content, stream=True, **gen_kwargs)
-        async for part in stream:
-            if token := part.choices[0].text or "":
-                await response_message.stream_token(token)
+        response_message = await generate_mistral_7B_response(client, message, gen_kwargs)
     else:
-        stream = await client.chat.completions.create(messages=message_history, stream=True, **gen_kwargs)
-        async for part in stream:
-            if token := part.choices[0].delta.content or "":
-                await response_message.stream_token(token)
+        response_message = await generate_response(client, message_history, gen_kwargs)
+
+    while True:
+        try:
+            function_call = json.loads(response_message.content)
+            if(isinstance(function_call, dict) and "function_name" in function_call and "arguments" in function_call):
+                function_name = function_call["function_name"]
+                arguments = function_call["arguments"]
+
+                # Import supporting functions
+                from text_to_image_interface import get_storybook_illustration
+
+                if function_name == "get_storybook_illustration":
+                    result = get_storybook_illustration(arguments)
+                else:
+                    result = f"Unknown function: {function_name}"
+
+                message_history.append({"role": "system", "content": result})
+                response_message = await generate_response(client, message_history, gen_kwargs)
+
+                message_history.append({"role": "assistant", "content": response_message.content})
+                continue
+            break
+        except json.JSONDecodeError:
+            break
 
     message_history.append({"role": "assistant", "content": response_message.content})
     cl.user_session.set("message_history", message_history)
-    await response_message.update()
 
 
 if __name__ == "__main__":

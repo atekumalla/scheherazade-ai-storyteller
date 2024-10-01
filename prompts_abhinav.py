@@ -79,7 +79,7 @@ Here is an example JSON format to use as an example:
             "character_traits": "a description of the character's traits, i.e. naughty, funny, michevious etc"
             }
         ],
-        "coover_picture_description": "description of the cover picture of the book, it should be a description of an image feature some of the characters doing something that has some context to the story",
+        "cover_picture_description": "description of the cover picture of the book, it should be a description of an image feature some of the characters doing something that has some context to the story",
         "num_pages": 2,
         "pages": [
             {

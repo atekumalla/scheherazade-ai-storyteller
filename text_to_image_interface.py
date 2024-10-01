@@ -15,8 +15,6 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
     print(f"Pages: {pages}")
     print("Storybook illustration generated successfully!")
 
-
-def generate_cover_picture(title, characters, cover_picture_description):
     COVER_PICTURE_PROMPT = f"Cover picture for {title} with {characters} and following the description: {cover_picture_description}"
     headers = {
         "Api-Key": f"{os.getenv("IDEOGRAM_API_KEY")}",
@@ -37,3 +35,4 @@ def generate_cover_picture(title, characters, cover_picture_description):
     print(response.json())
 
     return response.json()
+    
