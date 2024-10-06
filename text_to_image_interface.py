@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 import os
 from download_image import download_file
 from create_pdf import convert_images_to_pdf
+from page_text_to_image import generate_image_from_page_text
+from page_text_to_image import merge_images_horizontally
+from page_text_to_image import get_random_font
 
 load_dotenv()
 
@@ -78,6 +81,15 @@ def get_image_url(response):
             return image_data['url']
     return None
 
+
+def get_image_resolution(response):
+    if 'data' in response and isinstance(response['data'], list) and len(response['data']) > 0:
+        # Extract the Resolution from the first item in the 'data' list
+        image_data = response['data'][0]
+        if 'resolution' in image_data:
+            return image_data['resolution']
+    return None
+
 def download_image_from_response(response, filename):
     response_json = response.json()
     image_url = get_image_url(response_json)
@@ -109,11 +121,35 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
     download_image_from_response(response, "page_0_image.png")
     seed = get_image_seed(response.json())
     print(f"--->DEBUG: Using Seed: {seed} from the cover image")
+    resolution = get_image_resolution(response.json())
+    print(f"--->DEBUG: Resolution: {resolution} from the cover image")
+    #Genrate the cover image text image
+    generate_image_from_page_text(title, resolution, "page_0_text_image.png", "images", is_cover=True)
+    # Merge the cover image with the combined image
+    if merge_images_horizontally("images", "page_0_image.png", "page_0_text_image.png", "page_0_combined_image.png"):
+        #delete the cover image and the text image
+        os.remove("images/page_0_image.png")
+        os.remove("images/page_0_text_image.png")
+        print(f"Deleted images/page_0_image.png and images/page_0_text_image.png")
+    else:
+        print("Failed to merge images.")
+        return False
+    page_font = get_random_font()
     # Generate Page Pictures
     for page in pages:
         response = generate_image(page.page_picture_description, all_character_features, seed)
         print(f"--->DEBUG: {response.json()}")
         download_image_from_response(response, f"page_{page.page_num}_image.png")
+         #Genrate the page image text image
+        generate_image_from_page_text(page.page_text, resolution, f"page_{page.page_num}_text_image.png", "images", is_cover=False, font_to_use=page_font)
+        # Merge the cover image with the combined image
+        if merge_images_horizontally("images", f"page_{page.page_num}_image.png", f"page_{page.page_num}_text_image.png", f"page_{page.page_num}_combined_image.png"):
+            #delete the cover image and the text image
+            os.remove(f"images/page_{page.page_num}_image.png")
+            os.remove(f"images/page_{page.page_num}_text_image.png")
+            print(f"Deleted images/page_{page.page_num}_image.png and images/page_{page.page_num}_text_image.png")
+        else:
+            print("Failed to merge images for page {page.page_num}.")
 
     # Generate PDF
     storybook_name = title + ".pdf"
@@ -124,4 +160,4 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
     for file in os.listdir("images"):
         os.remove(os.path.join("images", file))
 
-    return response.json()
+    return storybook_name
