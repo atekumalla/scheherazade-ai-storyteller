@@ -5,12 +5,14 @@ import os
 from download_image import download_file
 from create_pdf import convert_images_to_pdf
 from openai import OpenAI
-from langsmith.wrappers import wrap_openai
-from langsmith import traceable
+from page_text_to_image import generate_image_from_page_text
+from page_text_to_image import merge_images_horizontally
+from page_text_to_image import get_random_font
 
 client =  OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_ENDPOINT"))
 # Flag to use DallE
-usingDallE = True
+usingDallE = False
+
 
 load_dotenv()
 
@@ -24,6 +26,7 @@ def generate_dalle_image(image_description, character_features, isPage=False):
         Make sure the image is in a style appropriate for a children's story book.\n
         Do not create this image as a coverpage.\n
         Ensure to use the seed and create and image where all the characters are still the same age and look similar to the seed picture.\n
+        Use a crayon cartoon style for the images.
             
         IMPORTANT: Do not have add any text to the image!\n
         """
@@ -34,6 +37,7 @@ def generate_dalle_image(image_description, character_features, isPage=False):
         {character_features}\n
 
         Make sure the image is in a style appropriate for a children's story book.\n
+        Use a crayon cartoon style for the images.
             
         IMPORTANT: Do not have add any text to the image!\n
         """
@@ -50,7 +54,7 @@ def generate_dalle_image(image_description, character_features, isPage=False):
     return response
 
 
-def generate_image(image_description, character_features, seed=None, isPage=False):
+def generate_image(image_description, character_features, isPage ,seed=None):
     if isPage:
         PICTURE_PROMPT = f"""Generate a picture for a page in a children's story book using the following prompt: \n
         {image_description}\n
@@ -138,9 +142,20 @@ def get_dalle_image_url(response):
     print(f"==> Debug: {response}")
     return response.data[0].url
 
+def get_image_resolution(response):
+    if 'data' in response and isinstance(response['data'], list) and len(response['data']) > 0:
+        # Extract the Resolution from the first item in the 'data' list
+        image_data = response['data'][0]
+        if 'resolution' in image_data:
+            return image_data['resolution']
+    return None
+
 def download_image_from_response(response, filename):
-    #image_url = get_image_url(response.json())
-    image_url = get_dalle_image_url(response)
+    if usingDallE:
+        image_url = get_dalle_image_url(response)
+    else:
+        image_url = get_image_url(response.json())
+
     if image_url:
         print(f"---> DEBUG: Image URL: {image_url}")
         download_file(image_url, filename, "images")
@@ -163,6 +178,7 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
         features = character.character_features
         all_character_features += f"Name of Character: {character_name}:\nTraits of {character_name}: {traits}:\nFeatures of {features}:\n"
 
+    resolution = "1024x1024"
     #Generating Cover Picture
     if usingDallE:
         response = generate_dalle_image(cover_picture_description, all_character_features, False)
@@ -176,6 +192,22 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
     if not usingDallE:
         seed = get_image_seed(response.json())
         print(f"---> DEBUG: Using Seed: {seed} from the cover image")
+        resolution = get_image_resolution(response.json())
+        print(f"--->DEBUG: Resolution: {resolution} from the cover image")
+
+    #Genrate the cover image text image
+    generate_image_from_page_text(title, resolution, "page_0_text_image.png", "images", is_cover=True)
+
+    # Merge the cover image with the combined image
+    if merge_images_horizontally("images", "page_0_image.png", "page_0_text_image.png", "page_0_combined_image.png"):
+        #delete the cover image and the text image
+        os.remove("images/page_0_image.png")
+        os.remove("images/page_0_text_image.png")
+        print(f"Deleted images/page_0_image.png and images/page_0_text_image.png")
+    else:
+        print("Failed to merge images.")
+        return False
+    page_font = get_random_font()
 
     # Generate Page Pictures
     for page in pages:
@@ -183,10 +215,20 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
             response = generate_dalle_image(page.page_picture_description, all_character_features, True)
             print(f"---> DEBUG: {response}")
         else:
-            response = generate_image(page.page_picture_description, all_character_features, seed, True)
+            response = generate_image(page.page_picture_description, all_character_features, True, seed)
             print(f"--->DEBUG: {response.json()}")
         
         download_image_from_response(response, f"page_{page.page_num}_image.png")
+         #Genrate the page image text image
+        generate_image_from_page_text(page.page_text, resolution, f"page_{page.page_num}_text_image.png", "images", is_cover=False, font_to_use=page_font)
+        # Merge the cover image with the combined image
+        if merge_images_horizontally("images", f"page_{page.page_num}_image.png", f"page_{page.page_num}_text_image.png", f"page_{page.page_num}_combined_image.png"):
+            #delete the cover image and the text image
+            os.remove(f"images/page_{page.page_num}_image.png")
+            os.remove(f"images/page_{page.page_num}_text_image.png")
+            print(f"Deleted images/page_{page.page_num}_image.png and images/page_{page.page_num}_text_image.png")
+        else:
+            print("Failed to merge images for page {page.page_num}.")
 
     # Generate PDF
     storybook_name = title + ".pdf"
@@ -197,4 +239,4 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
     for file in os.listdir("images"):
         os.remove(os.path.join("images", file))
 
-    return response.json()
+    return storybook_name
