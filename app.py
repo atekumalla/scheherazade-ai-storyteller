@@ -5,13 +5,15 @@ import openai
 import asyncio
 import json
 from datetime import datetime
-from prompts_abhinav import SYSTEM_PROMPT
-from prompts_abhinav import IMAGE_GENERATION_PROMPT
+from prompts import SYSTEM_PROMPT
+from prompts import IMAGE_GENERATION_PROMPT
 
 from langsmith.wrappers import wrap_openai
 from langsmith import traceable
 from types import SimpleNamespace
 from text_to_image_interface import get_storybook_illustration
+
+
 # Load environment variables
 load_dotenv()
 
