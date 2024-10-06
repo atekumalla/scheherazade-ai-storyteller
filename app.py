@@ -62,9 +62,6 @@ def get_latest_user_message(message_history):
             return message['content']
     return None
 
-
-
-
 @traceable
 @cl.on_chat_start
 def on_chat_start():    
