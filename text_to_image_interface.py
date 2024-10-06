@@ -4,21 +4,80 @@ from dotenv import load_dotenv
 import os
 from download_image import download_file
 from create_pdf import convert_images_to_pdf
+from openai import OpenAI
 from page_text_to_image import generate_image_from_page_text
 from page_text_to_image import merge_images_horizontally
 from page_text_to_image import get_random_font
 
+client =  OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_ENDPOINT"))
+# Flag to use DallE
+usingDallE = False
+
+
 load_dotenv()
 
+def generate_dalle_image(image_description, character_features, isPage=False):
+    if isPage:
+        PICTURE_PROMPT = f"""Generate a picture for a page in a children's story book using the following prompt: \n
+        {image_description}\n
+        Below you will find a description of each characters that you may need to use for the picture based on the above description. \n
+        {character_features} \n
 
-def generate_image(image_description, character_features, seed=None):
+        Make sure the image is in a style appropriate for a children's story book.\n
+        Do not create this image as a coverpage.\n
+        Ensure to use the seed and create and image where all the characters are still the same age and look similar to the seed picture.\n
+        Use a crayon cartoon style for the images.
+            
+        IMPORTANT: Do not have add any text to the image!\n
+        """
+    else:
+        PICTURE_PROMPT = f"""Generate a picture for a children's story book using the following prompt:\n
+        {image_description}\n
+        Below you will find a description of each characters that you may need to use for the cover picture based on the above description.\n
+        {character_features}\n
 
-    PICTURE_PROMPT = f"""Generate a picture for a children's story book using the following prompt: {image_description}
-        Below you will find a description of each characters that you may need to use for the cover picture based on the above description.
-        {character_features}
+        Make sure the image is in a style appropriate for a children's story book.\n
+        Use a crayon cartoon style for the images.
+            
+        IMPORTANT: Do not have add any text to the image!\n
+        """
+    
+    print("\n--->DEBUG: ", PICTURE_PROMPT)
 
-        IMPORTANT: Do not have any text describing the story or the title of the story on the images!
-    """
+    response = client.images.generate(
+        model="dall-e-3",
+        prompt=PICTURE_PROMPT,
+        size="1024x1024",
+        quality="standard",
+        n=1
+    )
+    return response
+
+
+def generate_image(image_description, character_features, isPage ,seed=None):
+    if isPage:
+        PICTURE_PROMPT = f"""Generate a picture for a page in a children's story book using the following prompt: \n
+        {image_description}\n
+        Below you will find a description of each characters that you may need to use for the picture based on the above description. \n
+        {character_features} \n
+
+        Make sure the image is in a style appropriate for a children's story book.\n
+        Do not create this image as a coverpage.\n
+        Ensure to use the seed and create and image where all the characters are still the same age and look similar to the seed picture.\n
+            
+        IMPORTANT: Do not have add any text to the image!\n
+        """
+    else:
+        PICTURE_PROMPT = f"""Generate a picture for a children's story book using the following prompt:\n
+        {image_description}\n
+        Below you will find a description of each characters that you may need to use for the cover picture based on the above description.\n
+        {character_features}\n
+
+        Make sure the image is in a style appropriate for a children's story book.\n
+            
+        IMPORTANT: Do not have add any text to the image!\n
+        """
+    
     print("\n--->DEBUG: ", PICTURE_PROMPT)
     print("\n--->INPUT SEED: ", seed)
 
@@ -59,8 +118,6 @@ SAMPLE PROMPTS for TESTING:
 2. generate a story about a boy who love firetrucks and ambulances. Make sure the story is appropriate for a 2 year old. Keep it 3 pages long
 '''
 
-
-
 def get_image_seed(response):
     try:
         # Access the first item in the 'data' list
@@ -81,6 +138,9 @@ def get_image_url(response):
             return image_data['url']
     return None
 
+def get_dalle_image_url(response):
+    print(f"==> Debug: {response}")
+    return response.data[0].url
 
 def get_image_resolution(response):
     if 'data' in response and isinstance(response['data'], list) and len(response['data']) > 0:
@@ -91,8 +151,11 @@ def get_image_resolution(response):
     return None
 
 def download_image_from_response(response, filename):
-    response_json = response.json()
-    image_url = get_image_url(response_json)
+    if usingDallE:
+        image_url = get_dalle_image_url(response)
+    else:
+        image_url = get_image_url(response.json())
+
     if image_url:
         print(f"---> DEBUG: Image URL: {image_url}")
         download_file(image_url, filename, "images")
@@ -115,16 +178,26 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
         features = character.character_features
         all_character_features += f"Name of Character: {character_name}:\nTraits of {character_name}: {traits}:\nFeatures of {features}:\n"
 
+    resolution = "1024x1024"
     #Generating Cover Picture
-    response = generate_image(cover_picture_description, all_character_features)
-    print(f"--->DEBUG: {response.json()}")
+    if usingDallE:
+        response = generate_dalle_image(cover_picture_description, all_character_features, False)
+        print(f"---> DEBUG: {response}")
+    else:
+        response = generate_image(cover_picture_description, all_character_features, False)
+        print(f"---> DEBUG: {response.json()}")
+    
     download_image_from_response(response, "page_0_image.png")
-    seed = get_image_seed(response.json())
-    print(f"--->DEBUG: Using Seed: {seed} from the cover image")
-    resolution = get_image_resolution(response.json())
-    print(f"--->DEBUG: Resolution: {resolution} from the cover image")
+
+    if not usingDallE:
+        seed = get_image_seed(response.json())
+        print(f"---> DEBUG: Using Seed: {seed} from the cover image")
+        resolution = get_image_resolution(response.json())
+        print(f"--->DEBUG: Resolution: {resolution} from the cover image")
+
     #Genrate the cover image text image
     generate_image_from_page_text(title, resolution, "page_0_text_image.png", "images", is_cover=True)
+
     # Merge the cover image with the combined image
     if merge_images_horizontally("images", "page_0_image.png", "page_0_text_image.png", "page_0_combined_image.png"):
         #delete the cover image and the text image
@@ -135,10 +208,16 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
         print("Failed to merge images.")
         return False
     page_font = get_random_font()
+
     # Generate Page Pictures
     for page in pages:
-        response = generate_image(page.page_picture_description, all_character_features, seed)
-        print(f"--->DEBUG: {response.json()}")
+        if usingDallE:
+            response = generate_dalle_image(page.page_picture_description, all_character_features, True)
+            print(f"---> DEBUG: {response}")
+        else:
+            response = generate_image(page.page_picture_description, all_character_features, True, seed)
+            print(f"--->DEBUG: {response.json()}")
+        
         download_image_from_response(response, f"page_{page.page_num}_image.png")
          #Genrate the page image text image
         generate_image_from_page_text(page.page_text, resolution, f"page_{page.page_num}_text_image.png", "images", is_cover=False, font_to_use=page_font)
