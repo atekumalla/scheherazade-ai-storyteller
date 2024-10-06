@@ -8,7 +8,7 @@ from create_pdf import convert_images_to_pdf
 load_dotenv()
 
 
-def generate_image(image_description, character_features):
+def generate_image(image_description, character_features, seed=None):
 
     PICTURE_PROMPT = f"""Generate a picture for a children's story book using the following prompt: {image_description}
         Below you will find a description of each characters that you may need to use for the cover picture based on the above description.
@@ -17,22 +17,34 @@ def generate_image(image_description, character_features):
         IMPORTANT: Do not have any text describing the story or the title of the story on the images!
     """
     print("\n--->DEBUG: ", PICTURE_PROMPT)
+    print("\n--->INPUT SEED: ", seed)
 
     generation_endpoint = os.getenv("IDEOGRAM_ENDPOINT") + "/generate"
+    print("\n--->DEBUG: Generation endpoint:   ", generation_endpoint)
     headers = {
         "Api-Key": f"{os.getenv("IDEOGRAM_API_KEY")}",
         "Content-Type": "application/json"
     }
-    
-    payload = { 
-        "image_request": {
-            "prompt": f"{PICTURE_PROMPT}",
-            "aspect_ratio": "ASPECT_10_16",
-            "model": "V_2",
-            "magic_prompt_option": "AUTO"
-        } 
-    }
-
+    if seed is not None:
+        payload = { 
+            "image_request": {
+                "prompt": f"{PICTURE_PROMPT}",
+                "aspect_ratio": "ASPECT_10_16",
+                "model": "V_2",
+                "magic_prompt_option": "AUTO",
+                "seed": seed
+            } 
+        }
+    else:
+        payload = { 
+            "image_request": {
+                "prompt": f"{PICTURE_PROMPT}",
+                "aspect_ratio": "ASPECT_10_16",
+                "model": "V_2",
+                "magic_prompt_option": "AUTO"
+            } 
+        }
+    print(f"--->DEBUG: Ideogram Payload: {payload}")
     response = requests.post(generation_endpoint, headers=headers, json=payload)
     return response
 
@@ -46,6 +58,18 @@ SAMPLE PROMPTS for TESTING:
 
 
 
+def get_image_seed(response):
+    try:
+        # Access the first item in the 'data' list
+        data_item = response['data'][0]
+        # Extract the seed and convert it to an integer
+        seed = int(data_item['seed'])
+        return seed
+    except (KeyError, IndexError, ValueError):
+        # Return None if the seed is not found or cannot be converted to an integer
+        print("No seed found in the response.")
+        return None
+
 def get_image_url(response):
     if 'data' in response and isinstance(response['data'], list) and len(response['data']) > 0:
         # Extract the URL from the first item in the 'data' list
@@ -54,12 +78,12 @@ def get_image_url(response):
             return image_data['url']
     return None
 
-def download_image_from_response(response):
+def download_image_from_response(response, filename):
     response_json = response.json()
     image_url = get_image_url(response_json)
     if image_url:
         print(f"---> DEBUG: Image URL: {image_url}")
-        download_file(image_url, "cover_image.png", "images")
+        download_file(image_url, filename, "images")
     else:
         print("Image URL not found in the response.")
 
@@ -77,20 +101,27 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
         character_name = character.character_name
         traits = character.character_traits
         features = character.character_features
-        all_character_features += f"Name of {character_name}: {character_name}:\nTraits of {character_name}: {traits}:\nFeatures of {features}:\n"
+        all_character_features += f"Name of Character: {character_name}:\nTraits of {character_name}: {traits}:\nFeatures of {features}:\n"
 
     #Generating Cover Picture
     response = generate_image(cover_picture_description, all_character_features)
     print(f"--->DEBUG: {response.json()}")
-    download_image_from_response(response)
-    
+    download_image_from_response(response, "page_0_image.png")
+    seed = get_image_seed(response.json())
+    print(f"--->DEBUG: Using Seed: {seed} from the cover image")
     # Generate Page Pictures
     for page in pages:
-        response = generate_image(page.page_picture_description, all_character_features)
+        response = generate_image(page.page_picture_description, all_character_features, seed)
         print(f"--->DEBUG: {response.json()}")
-        download_image_from_response(response)
+        download_image_from_response(response, f"page_{page.page_num}_image.png")
 
     # Generate PDF
-    convert_images_to_pdf("images","storybook.pdf")
+    storybook_name = title + ".pdf"
+    convert_images_to_pdf("images",storybook_name)
+    print(f"PDF created successfully: {storybook_name}")
+
+    # Clean up the images folder
+    for file in os.listdir("images"):
+        os.remove(os.path.join("images", file))
 
     return response.json()

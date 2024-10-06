@@ -91,7 +91,7 @@ Here is an example JSON format to use as an example:
             "page_picture_description": "string that contains the text description of one or more of th events happening on the page. It should contain something relevant to the page and must succintly capture as many details as it can about what is going on in the page, i.e. the setting, the characters, their interaction, their features and expressions"
             },
             {
-            "page_num" : 1,
+            "page_num" : 2,
             "page_text": "string that contains the text that is supposed to be on this page in the book",
             "page_picture_description": "string that contains the text description of one or more of the events happening on the page. It should contain something relevant to the page and must succintly capture as many details as it can about what is going on in the page, i.e. the setting, the characters, their interaction, their features and expressions"
             }
