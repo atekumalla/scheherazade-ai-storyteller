@@ -28,4 +28,4 @@ def download_file(url, filename, folder_name):
         
         
 # Uagae
-# download_file("https://ideogram.ai/api/images/ephemeral/y23tOWlaS3iHGjyvGQeWEA.png?exp=1728280913&sig=9789e5108e78c1550c997b8d3e89747e847554765b661dfb53d1ff64edc8168c", "desert.png", "images")
+# download_file("https://ideogram.ai/api/images/ephemeral/y23tOWlaS3iHGjyvGQeWEA.png?exp=1728280913&sig=9789e5108e78c1550c997b8d3e89747e847554765b661dfb53d1ff64edc8168c", "desert.png", "images")def get_test_response_json_and_image():
