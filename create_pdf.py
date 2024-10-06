@@ -14,6 +14,9 @@ def convert_images_to_pdf(directory_name, output_pdf):
     image_directory = os.path.join(current_dir, directory_name)
     
     # Get all image files from the directory
+    if not os.path.exists(image_directory):
+        print(f"Directory {image_directory} does not exist. Operation failed.")
+        return
     image_files = [f for f in os.listdir(image_directory) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
     print(image_files)
     # Sort the files based on creation time, oldest first
@@ -33,4 +36,4 @@ image_directory = "images"
 output_pdf = "output.pdf"
 
 # Usage
-convert_images_to_pdf(image_directory, output_pdf)
+# convert_images_to_pdf(image_directory, output_pdf)
