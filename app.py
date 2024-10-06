@@ -5,11 +5,13 @@ import openai
 import asyncio
 import json
 from datetime import datetime
-from prompts import SYSTEM_PROMPT
+from prompts_abhinav import SYSTEM_PROMPT
+from prompts_abhinav import IMAGE_GENERATION_PROMPT
 
 from langsmith.wrappers import wrap_openai
 from langsmith import traceable
-
+from types import SimpleNamespace
+from text_to_image_interface import get_storybook_illustration
 # Load environment variables
 load_dotenv()
 
@@ -39,13 +41,14 @@ config_key = "openai_gpt-4"
 # Get selected configuration
 config = configurations[config_key]
 
+debug = False
 # Initialize the OpenAI async client
 client = wrap_openai(openai.AsyncClient(api_key=config["api_key"], base_url=config["endpoint_url"]))
 
 gen_kwargs = {
     "model": config["model"],
     "temperature": 0.3,
-    "max_tokens": 1000
+    "max_tokens": 5000
 }
 
 # Configuration setting to enable or disable the system prompt
@@ -59,34 +62,56 @@ def get_latest_user_message(message_history):
             return message['content']
     return None
 
+
+@traceable
+@cl.on_chat_start
+def on_chat_start():    
+    message_history = [{"role": "system", "content": SYSTEM_PROMPT+ IMAGE_GENERATION_PROMPT}]
+    cl.user_session.set("message_history", message_history)
+
+@traceable
+async def generate_response(client, message_history, gen_kwargs):
+    response_message = cl.Message(content="")
+    await response_message.send()
+
+    stream = await client.chat.completions.create(messages=message_history, stream=True, **gen_kwargs)
+    async for part in stream:
+        if token := part.choices[0].delta.content or "":
+            await response_message.stream_token(token)
+    
+    await response_message.update()
+
+    return response_message
+
+
 @traceable
 @cl.on_message
 async def on_message(message: cl.Message):
     message_history = cl.user_session.get("message_history", [])
-
-    if ENABLE_SYSTEM_PROMPT and (not message_history or message_history[0].get("role") != "system"):
-        system_prompt_content = SYSTEM_PROMPT
-        message_history.insert(0, {"role": "system", "content": system_prompt_content})
-
     message_history.append({"role": "user", "content": message.content})
-
-    response_message = cl.Message(content="")
-    await response_message.send()
-
-    if config_key == "mistral_7B":
-        stream = await client.completions.create(prompt=message.content, stream=True, **gen_kwargs)
-        async for part in stream:
-            if token := part.choices[0].text or "":
-                await response_message.stream_token(token)
-    else:
-        stream = await client.chat.completions.create(messages=message_history, stream=True, **gen_kwargs)
-        async for part in stream:
-            if token := part.choices[0].delta.content or "":
-                await response_message.stream_token(token)
-
-    message_history.append({"role": "assistant", "content": response_message.content})
+    if debug:
+        print("Message history:")
+        print(message_history)
+    response_message = await generate_response(client, message_history, gen_kwargs)
+    if debug:
+        print("Response message content:")
+        print(response_message.content)
+    while True:
+        if "get_storybook_illustration" in response_message.content:
+            # Avoid adding the response_message to the message_history in this case as it is increasing the message size to the OPENAI API
+            x = json.loads(response_message.content, object_hook=lambda d: SimpleNamespace(**d))
+            # Call the function
+            get_storybook_illustration(x.arguments.title, x.arguments.characters, x.arguments.cover_picture_description, x.arguments.num_pages, x.arguments.pages)
+            break
+        else:
+            message_history.append({"role": "assistant", "content": response_message.content})
+            break
+    
+    # response_message = await generate_response(client, message_history, gen_kwargs)
+    if debug:
+        print("Message history:")
+        print(message_history)
     cl.user_session.set("message_history", message_history)
-    await response_message.update()
 
 
 if __name__ == "__main__":
