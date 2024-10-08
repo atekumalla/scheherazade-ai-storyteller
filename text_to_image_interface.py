@@ -1,4 +1,3 @@
-# this is a placeholder function that will be implemented later
 import requests
 from dotenv import load_dotenv
 import os
@@ -12,7 +11,6 @@ from page_text_to_image import get_random_font
 client =  OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_ENDPOINT"))
 # Flag to use DallE
 usingDallE = False
-
 
 load_dotenv()
 
@@ -84,7 +82,7 @@ def generate_image(image_description, character_features, isPage ,seed=None):
     generation_endpoint = os.getenv("IDEOGRAM_ENDPOINT") + "/generate"
     print("\n--->DEBUG: Generation endpoint:   ", generation_endpoint)
     headers = {
-        "Api-Key": f"{os.getenv("IDEOGRAM_API_KEY")}",
+        "Api-Key": f'{os.getenv("IDEOGRAM_API_KEY")}',
         "Content-Type": "application/json"
     }
     if seed is not None:
@@ -231,8 +229,8 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
             print("Failed to merge images for page {page.page_num}.")
 
     # Generate PDF
-    storybook_name = title + ".pdf"
-    convert_images_to_pdf("images",storybook_name)
+    storybook_name = title + ".pdf" # If you want to generate the images else where add filepath to the name here?
+    convert_images_to_pdf("images", storybook_name)
     print(f"PDF created successfully: {storybook_name}")
 
     # Clean up the images folder

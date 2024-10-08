@@ -44,6 +44,7 @@ config_key = "openai_gpt-4"
 config = configurations[config_key]
 
 debug = False
+
 # Initialize the OpenAI async client
 client = wrap_openai(openai.AsyncClient(api_key=config["api_key"], base_url=config["endpoint_url"]))
 
@@ -67,7 +68,7 @@ def get_latest_user_message(message_history):
 @traceable
 @cl.on_chat_start
 def on_chat_start():    
-    message_history = [{"role": "system", "content": SYSTEM_PROMPT+ IMAGE_GENERATION_PROMPT}]
+    message_history = [{"role": "system", "content": SYSTEM_PROMPT + IMAGE_GENERATION_PROMPT}]
     cl.user_session.set("message_history", message_history)
 
 @traceable
@@ -102,7 +103,21 @@ async def on_message(message: cl.Message):
             # Avoid adding the response_message to the message_history in this case as it is increasing the message size to the OPENAI API
             x = json.loads(response_message.content, object_hook=lambda d: SimpleNamespace(**d))
             # Call the function
-            get_storybook_illustration(x.arguments.title, x.arguments.characters, x.arguments.cover_picture_description, x.arguments.num_pages, x.arguments.pages)
+            story_book_name = get_storybook_illustration(x.arguments.title, x.arguments.characters, x.arguments.cover_picture_description, x.arguments.num_pages, x.arguments.pages)
+            # Get the current directory of the PDF file
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            pdf_file_path = os.path.join(current_dir, story_book_name)
+            if debug:
+                print("Story book path: " + pdf_file_path)
+            # Send a message to the user
+            new_response_message = await cl.Message(content="Here is your story book: " + story_book_name).send()
+
+            # Send the file as an attachment
+            await cl.File(
+                name=story_book_name,                       # Name of the file to be sent
+                content=open(pdf_file_path, "rb").read(),   # Read the PDF content
+                mime_type="application/pdf"                 # MIME type for PDF
+            ).send(for_id=new_response_message.id)
             break
         else:
             message_history.append({"role": "assistant", "content": response_message.content})
