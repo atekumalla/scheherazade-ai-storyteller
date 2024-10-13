@@ -12,6 +12,7 @@ from langsmith.wrappers import wrap_openai
 from langsmith import traceable
 from types import SimpleNamespace
 from text_to_image_interface import get_storybook_illustration
+import concurrent.futures
 
 
 # Load environment variables
@@ -98,32 +99,46 @@ async def on_message(message: cl.Message):
     if debug:
         print("Response message content:")
         print(response_message.content)
-    while True:
-        if "get_storybook_illustration" in response_message.content:
-            # Avoid adding the response_message to the message_history in this case as it is increasing the message size to the OPENAI API
+    if "get_storybook_illustration" in response_message.content:
+        # Notify the user that the process is running in the background
+        await cl.Message(content="Generating your storybook, please wait...").send()
+
+        # Define the blocking part of the function
+        def generate_pdf():
             x = json.loads(response_message.content, object_hook=lambda d: SimpleNamespace(**d))
-            # Call the function
-            story_book_name = get_storybook_illustration(x.arguments.title, x.arguments.characters, x.arguments.cover_picture_description, x.arguments.num_pages, x.arguments.pages)
-            # Get the current directory of the PDF file
+            # Run the async function and get the result
+            story_book_name = asyncio.run(get_storybook_illustration(
+                x.arguments.title, 
+                x.arguments.characters, 
+                x.arguments.cover_picture_description, 
+                x.arguments.num_pages, 
+                x.arguments.pages
+            ))
             current_dir = os.path.dirname(os.path.abspath(__file__))
             pdf_file_path = os.path.join(current_dir, story_book_name)
             if debug:
                 print("Story book path: " + pdf_file_path)
-            # Send a message to the user
-            new_response_message = await cl.Message(content="Here is your story book: " + story_book_name).send()
+            return story_book_name, pdf_file_path
 
-            # Send the file as an attachment
+        # Function to send the PDF once it's generated
+        async def send_pdf(story_book_name, pdf_file_path):
+            new_response_message = await cl.Message(content="Here is your story book: " + story_book_name).send()
             await cl.File(
-                name=story_book_name,                       # Name of the file to be sent
-                content=open(pdf_file_path, "rb").read(),   # Read the PDF content
-                mime_type="application/pdf"                 # MIME type for PDF
+                name=story_book_name,
+                content=open(pdf_file_path, "rb").read(),
+                mime_type="application/pdf"
             ).send(for_id=new_response_message.id)
-            break
-        else:
-            message_history.append({"role": "assistant", "content": response_message.content})
-            break
+
+        # Use a ThreadPoolExecutor to run the blocking function in a separate thread
+        loop = asyncio.get_event_loop()
+        executor = concurrent.futures.ThreadPoolExecutor()
+        future = loop.run_in_executor(executor, generate_pdf)
+
+        # Schedule the send_pdf coroutine to run once the future is done
+        future.add_done_callback(lambda f: asyncio.run_coroutine_threadsafe(send_pdf(*f.result()), loop))
+    else:
+        message_history.append({"role": "assistant", "content": response_message.content})
     
-    # response_message = await generate_response(client, message_history, gen_kwargs)
     if debug:
         print("Message history:")
         print(message_history)

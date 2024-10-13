@@ -52,7 +52,7 @@ def generate_dalle_image(image_description, character_features, isPage=False):
     return response
 
 
-def generate_image(image_description, character_features, isPage ,seed=None):
+async def generate_image(image_description, character_features, isPage ,seed=None):
     if isPage:
         PICTURE_PROMPT = f"""Generate a picture for a page in a children's story book using the following prompt: \n
         {image_description}\n
@@ -160,7 +160,7 @@ def download_image_from_response(response, filename):
     else:
         print("Image URL not found in the response.")
 
-def get_storybook_illustration(title, characters, cover_picture_description, num_pages, pages):
+async def get_storybook_illustration(title, characters, cover_picture_description, num_pages, pages):
     print("Generating storybook illustration...")
     print(f"Title: {title}")
     print(f"Characters: {characters}")
@@ -182,8 +182,8 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
         response = generate_dalle_image(cover_picture_description, all_character_features, False)
         print(f"---> DEBUG: {response}")
     else:
-        response = generate_image(cover_picture_description, all_character_features, False)
-        print(f"---> DEBUG: {response.json()}")
+        response = await generate_image(cover_picture_description, all_character_features, False)
+        # print(f"---> DEBUG: {response.json()}")
     
     download_image_from_response(response, "page_0_image.png")
 
@@ -213,8 +213,8 @@ def get_storybook_illustration(title, characters, cover_picture_description, num
             response = generate_dalle_image(page.page_picture_description, all_character_features, True)
             print(f"---> DEBUG: {response}")
         else:
-            response = generate_image(page.page_picture_description, all_character_features, True, seed)
-            print(f"--->DEBUG: {response.json()}")
+            response = await generate_image(page.page_picture_description, all_character_features, True, seed)
+            print(f"--->DEBUG: {response}")
         
         download_image_from_response(response, f"page_{page.page_num}_image.png")
          #Genrate the page image text image
