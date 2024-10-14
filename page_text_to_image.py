@@ -26,7 +26,9 @@ def get_random_font():
     Returns:
     str: A randomly selected font name from the font_to_use list.
     """
-    return random.choice(font_to_use)
+    font_name = random.choice(font_to_use)
+    font_path = os.path.join(os.path.dirname(__file__), 'fonts', font_name)
+    return font_path
 
 
 def parse_resolution(resolution_string):

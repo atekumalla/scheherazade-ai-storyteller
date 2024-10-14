@@ -75,14 +75,25 @@ def on_chat_start():
 @traceable
 async def generate_response(client, message_history, gen_kwargs):
     response_message = cl.Message(content="")
-    await response_message.send()
 
     stream = await client.chat.completions.create(messages=message_history, stream=True, **gen_kwargs)
+    first_token = None
+    should_stream_to_ui = True
+
     async for part in stream:
-        if token := part.choices[0].delta.content or "":
+        token = part.choices[0].delta.content or ""
+        if first_token is None and token.strip():
+            first_token = token.strip()
+            print(f"First non-empty token is: {first_token}")
+            if first_token.startswith("{"):
+                should_stream_to_ui = False  # Do not stream to UI if the first token starts with "{"
+        
+        if should_stream_to_ui:
             await response_message.stream_token(token)
-    
-    await response_message.update()
+        else:
+            response_message.content += token  # Build up the response content
+    if should_stream_to_ui:
+        await response_message.send()
 
     return response_message
 
