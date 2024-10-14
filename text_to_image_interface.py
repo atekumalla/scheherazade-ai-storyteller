@@ -1,6 +1,7 @@
 import requests
 from dotenv import load_dotenv
 import os
+import random
 from download_image import download_file
 from create_pdf import convert_images_to_pdf
 from openai import OpenAI
@@ -91,7 +92,7 @@ async def generate_image(image_description, character_features, isPage ,seed=Non
                 "prompt": f"{PICTURE_PROMPT}",
                 "aspect_ratio": "ASPECT_10_16",
                 "model": "V_2",
-                "magic_prompt_option": "AUTO",
+                "magic_prompt_option": "OFF",
                 "style_type": "DESIGN",
                 "seed": seed
             } 
@@ -103,7 +104,7 @@ async def generate_image(image_description, character_features, isPage ,seed=Non
                 "aspect_ratio": "ASPECT_10_16",
                 "model": "V_2",
                 "style_type": "DESIGN",
-                "magic_prompt_option": "AUTO"
+                "magic_prompt_option": "OFF"
             } 
         }
     print(f"--->DEBUG: Ideogram Payload: {payload}")
@@ -178,18 +179,20 @@ async def get_storybook_illustration(title, characters, cover_picture_descriptio
         all_character_features += f"Name of Character: {character_name}:\n\nFeatures of {character_name}: {features}:\n"
 
     resolution = "1024x1024"
+
+    random_number = random.randint(1, 10000000)
     #Generating Cover Picture
     if usingDallE:
         response = generate_dalle_image(cover_picture_description, all_character_features, False)
         print(f"---> DEBUG: {response}")
     else:
-        response = await generate_image(cover_picture_description, all_character_features, False)
+        response = await generate_image(cover_picture_description, all_character_features, False, seed=random_number)
         # print(f"---> DEBUG: {response.json()}")
     
     download_image_from_response(response, "page_0_image.png")
 
     if not usingDallE:
-        seed = get_image_seed(response.json())
+        seed = random_number #get_image_seed(response.json())
         print(f"---> DEBUG: Using Seed: {seed} from the cover image")
         resolution = get_image_resolution(response.json())
         print(f"--->DEBUG: Resolution: {resolution} from the cover image")
