@@ -87,6 +87,8 @@ def generate_image_from_page_text(page_text, resolution, filename, folder_name, 
 
     # Define text and font
     text = page_text
+    print("Using font:")
+    print(font_to_use)
     large_font = ImageFont.truetype(font_to_use, font_size)
 
     # Split the text into lines and wrap long lines
