@@ -112,7 +112,9 @@ After dividing the story into paragraphs, generate a function call to get_storyb
             - the lighting
             - the expressions of each character to reflect the emotions that each characteris going through
     
-Here is an example JSON format to use as an example:
+IMPORTANT: Do not add any additional text other than json.
+
+Here is an example JSON format:
 {
     "function_name": "get_storybook_illustration",
     "arguments": {
@@ -144,6 +146,6 @@ Here is an example JSON format to use as an example:
     }
 }
 
-IMPORTANT: When calling functions, ensure that the output message contains only the JSON format, and no other extra strings.
+IMPORTANT: When calling functions, ensure that the output message contains only the JSON, and no other extra strings.
     
 """
