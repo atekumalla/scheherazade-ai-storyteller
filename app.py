@@ -51,7 +51,7 @@ client = wrap_openai(openai.AsyncClient(api_key=config["api_key"], base_url=conf
 
 gen_kwargs = {
     "model": config["model"],
-    "temperature": 0.3,
+    "temperature": 0.7,
     "max_tokens": 5000
 }
 

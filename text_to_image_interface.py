@@ -92,6 +92,7 @@ async def generate_image(image_description, character_features, isPage ,seed=Non
                 "aspect_ratio": "ASPECT_10_16",
                 "model": "V_2",
                 "magic_prompt_option": "AUTO",
+                "style_type": "DESIGN",
                 "seed": seed
             } 
         }
@@ -101,6 +102,7 @@ async def generate_image(image_description, character_features, isPage ,seed=Non
                 "prompt": f"{PICTURE_PROMPT}",
                 "aspect_ratio": "ASPECT_10_16",
                 "model": "V_2",
+                "style_type": "DESIGN",
                 "magic_prompt_option": "AUTO"
             } 
         }
@@ -172,9 +174,8 @@ async def get_storybook_illustration(title, characters, cover_picture_descriptio
     all_character_features = ""
     for character in characters:
         character_name = character.character_name
-        traits = character.character_traits
         features = character.character_features
-        all_character_features += f"Name of Character: {character_name}:\nTraits of {character_name}: {traits}:\nFeatures of {features}:\n"
+        all_character_features += f"Name of Character: {character_name}:\n\nFeatures of {character_name}: {features}:\n"
 
     resolution = "1024x1024"
     #Generating Cover Picture
