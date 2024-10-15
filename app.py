@@ -13,6 +13,7 @@ from langsmith.wrappers import wrap_openai
 from langsmith import traceable
 from types import SimpleNamespace
 from text_to_image_interface import get_storybook_illustration
+from story_rag import storybook_rag
 import concurrent.futures
 
 
@@ -59,6 +60,8 @@ gen_kwargs = {
 # Configuration setting to enable or disable the system prompt
 ENABLE_SYSTEM_PROMPT = True
 
+sb_rag = storybook_rag()
+
 @traceable
 def get_latest_user_message(message_history):
     # Iterate through the message history in reverse to find the last user message
@@ -104,6 +107,18 @@ async def generate_response(client, message_history, gen_kwargs):
 async def on_message(message: cl.Message):
     message_history = cl.user_session.get("message_history", [])
 
+    relevant_docs = sb_rag.get_relevant_docs(message.content)
+
+    individual_message_prompt = f"""
+        You also have the {len(relevant_docs)} documents for additional context to building a story for the user. 
+        These documents are either snippets of stories or entire stories that you can derive inspiration from.
+    """
+
+    for idx, doc_text in enumerate(relevant_docs):
+        individual_message_prompt += f"\nDocument {idx+1}:\n{doc_text}\n"
+    
+    individual_message_prompt += "\nUse the documents that are provided for additional context when coming up with the story."
+
     # Processing images if there are any
     images = [file for file in message.elements if "image" in file.mime] if message.elements else []
 
@@ -127,12 +142,15 @@ async def on_message(message: cl.Message):
             ]
         })
     else:
+        message_history.append({"role": "system", "content": individual_message_prompt})
         message_history.append({"role": "user", "content": message.content})
 
     if debug:
         print("Message history:")
         print(message_history)
+
     response_message = await generate_response(client, message_history, gen_kwargs)
+
     if debug:
         print("Response message content:")
         print(response_message.content)
