@@ -4,6 +4,7 @@ import chainlit as cl
 import openai
 import asyncio
 import json
+import base64
 from datetime import datetime
 from prompts import SYSTEM_PROMPT
 from prompts import IMAGE_GENERATION_PROMPT
@@ -85,7 +86,7 @@ async def generate_response(client, message_history, gen_kwargs):
         if first_token is None and token.strip():
             first_token = token.strip()
             print(f"First non-empty token is: {first_token}")
-            if first_token.startswith("{"):
+            if first_token.startswith("{"): # This is to prevent the function call from being printed to the user on chainlit
                 should_stream_to_ui = False  # Do not stream to UI if the first token starts with "{"
         
         if should_stream_to_ui:
@@ -102,7 +103,32 @@ async def generate_response(client, message_history, gen_kwargs):
 @cl.on_message
 async def on_message(message: cl.Message):
     message_history = cl.user_session.get("message_history", [])
-    message_history.append({"role": "user", "content": message.content})
+
+    # Processing images if there are any
+    images = [file for file in message.elements if "image" in file.mime] if message.elements else []
+
+    if images:
+        # Read the first image and encode it to base64
+        with open(images[0].path, "rb") as f:
+            base64_image = base64.b64encode(f.read()).decode('utf-8')
+        message_history.append({
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": message.content if message.content else "What's in this image?"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64, {base64_image}"
+                    }
+                }
+            ]
+        })
+    else:
+        message_history.append({"role": "user", "content": message.content})
+
     if debug:
         print("Message history:")
         print(message_history)
@@ -110,6 +136,8 @@ async def on_message(message: cl.Message):
     if debug:
         print("Response message content:")
         print(response_message.content)
+    # If function call in the response
+
     if "get_storybook_illustration" in response_message.content:
         # Notify the user that the process is running in the background
         await cl.Message(content="Generating your storybook, please wait...").send()
