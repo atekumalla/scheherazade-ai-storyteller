@@ -11,7 +11,7 @@ page_text_font_size = 48
 font_to_use = [
     "Optima.ttc",
     "Futura.ttc",
-    #"GillSans.ttc",
+    "GillSans.ttc",
     "HelveticaNeue.ttc",
     "MarkerFelt.ttc",
     "Georgia.ttf"
