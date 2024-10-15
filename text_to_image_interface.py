@@ -90,6 +90,7 @@ async def generate_image(image_description, character_features, isPage ,seed=Non
         payload = { 
             "image_request": {
                 "prompt": f"{PICTURE_PROMPT}",
+                "negative_prompt": "not text, no words, no typography, no letters",
                 "aspect_ratio": "ASPECT_10_16",
                 "model": "V_2",
                 "magic_prompt_option": "OFF",
@@ -101,6 +102,7 @@ async def generate_image(image_description, character_features, isPage ,seed=Non
         payload = { 
             "image_request": {
                 "prompt": f"{PICTURE_PROMPT}",
+                "negative_prompt": "not text, no words, no typography, no letters",
                 "aspect_ratio": "ASPECT_10_16",
                 "model": "V_2",
                 "style_type": "DESIGN",
