@@ -5,16 +5,15 @@ import openai
 import asyncio
 import json
 import base64
+import concurrent.futures
+
 from datetime import datetime
 from prompts import SYSTEM_PROMPT
 from prompts import IMAGE_GENERATION_PROMPT
-
 from langsmith.wrappers import wrap_openai
 from langsmith import traceable
 from types import SimpleNamespace
 from text_to_image_interface import get_storybook_illustration
-import concurrent.futures
-
 
 # Load environment variables
 load_dotenv()
@@ -85,7 +84,8 @@ async def generate_response(client, message_history, gen_kwargs):
         token = part.choices[0].delta.content or ""
         if first_token is None and token.strip():
             first_token = token.strip()
-            print(f"First non-empty token is: {first_token}")
+            if debug:
+                print(f"First non-empty token is: {first_token}")
             if first_token.startswith("{"): # This is to prevent the function call from being printed to the user on chainlit
                 should_stream_to_ui = False  # Do not stream to UI if the first token starts with "{"
         
