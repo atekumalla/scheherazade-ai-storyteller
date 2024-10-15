@@ -88,11 +88,15 @@ async def generate_response(client, message_history, gen_kwargs):
                 print(f"First non-empty token is: {first_token}")
             if first_token.startswith("{"): # This is to prevent the function call from being printed to the user on chainlit
                 should_stream_to_ui = False  # Do not stream to UI if the first token starts with "{"
-        
+
+        #print("DEBUG=> Streaming to UI:", should_stream_to_ui)
         if should_stream_to_ui:
             await response_message.stream_token(token)
         else:
             response_message.content += token  # Build up the response content
+
+    #print("DEBUG => Response Message:", response_message.content)
+
     if should_stream_to_ui:
         await response_message.send()
 

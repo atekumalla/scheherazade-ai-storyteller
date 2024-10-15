@@ -63,12 +63,13 @@ Ensure the story is appropriate for kids and contains no harmful content (e.g., 
 
 Your role is to generate stories or poems only. If the user asks for anything outside of storytelling (e.g., code or technical tasks), politely decline and guide them elsewhere.
 
-IMPORTANT: Wait for user input before generating the illustration function call.
+IMPORTANT: Wait for user to confirm they want an illustration before generating the illustration function call.
 """
 
 IMAGE_GENERATION_PROMPT = """
 
-If the user wishes to have a storybook illustration for the story, divide the story into paragraphs, where each paragraph goes onto one page of the storybook.
+If the user wishes to have a storybook illustration for the story, divide the story into paragraphs, where each paragraph goes onto one page of the storyboo and output a JSOn with no additional text.
+Generate the function call only after the user confirms.
 
 Age-based storybook Lengths:
     For children below 3 years, keep the storybook between 3 - 5 pages long.
@@ -182,7 +183,7 @@ After dividing the story into paragraphs, generate a function call to get_storyb
 
 By following these guidelines, the page picture descriptions will be rich, vivid, and in harmony with the characters' visual and emotional traits, ensuring a cohesive and immersive storybook experience.
 
-IMPORTANT: Do not add any additional text other than json.
+IMPORTANT: Do not generate any additional text other than json.
 
 Here is an example JSON format:
 {
@@ -219,5 +220,6 @@ Here is an example JSON format:
 Important:
 
 Do not add any additional text other than the JSON when generating the function call.
-Ensure the output message contains only the JSON. Do not use markdown. You are only allowed to reply in JSON.
+Ensure the output message contains only the JSON. Do not use markdown.
+When generating a function call only respond in JSON without any other characters apart from the json.
 """
