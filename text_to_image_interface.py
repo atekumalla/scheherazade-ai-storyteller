@@ -8,6 +8,8 @@ from openai import OpenAI
 from page_text_to_image import generate_image_from_page_text
 from page_text_to_image import merge_images_horizontally
 from page_text_to_image import get_random_font
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 client =  OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_ENDPOINT"))
 # Flag to use DallE
@@ -53,7 +55,7 @@ def generate_dalle_image(image_description, character_features, isPage=False):
     return response
 
 
-async def generate_image(image_description, character_features, isPage ,seed=None):
+def generate_image(image_description, character_features, isPage ,seed=None):
     if isPage:
         PICTURE_PROMPT = f"""Generate a picture for a page in a children's story book using the following prompt: \n
         {image_description}\n
@@ -165,7 +167,37 @@ def download_image_from_response(response, filename):
     else:
         print("Image URL not found in the response.")
 
+def process_page(page, all_character_features, resolution, page_font, seed):
+    print(f"==> Processing page {page.page_num}")
+    if usingDallE:
+        response = generate_dalle_image(page.page_picture_description, all_character_features, True)
+        print(f"---> DEBUG: {response}")
+    else:
+        response = generate_image(page.page_picture_description, all_character_features, True, seed)
+        print(f"--->DEBUG: {response}")
+    
+    download_image_from_response(response, f"page_{page.page_num}_image.png")
+    # Generate the page image text image
+    generate_image_from_page_text(page.page_text, resolution, f"page_{page.page_num}_text_image.png", "images", is_cover=False, font_to_use=page_font)
+    # Merge the cover image with the combined image
+    if merge_images_horizontally("images", f"page_{page.page_num}_image.png", f"page_{page.page_num}_text_image.png", f"page_{page.page_num}_combined_image.png"):
+        # Delete the cover image and the text image
+        os.remove(f"images/page_{page.page_num}_image.png")
+        os.remove(f"images/page_{page.page_num}_text_image.png")
+        print(f"Deleted images/page_{page.page_num}_image.png and images/page_{page.page_num}_text_image.png")
+    else:
+        print(f"Failed to merge images for page {page.page_num}.")
+    print(f"==> Done processing page {page.page_num}")
+
+async def process_page_async(page, all_character_features, resolution, page_font, seed):
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        await loop.run_in_executor(pool, process_page, page, all_character_features, resolution, page_font, seed)
+
 async def get_storybook_illustration(title, characters, cover_picture_description, num_pages, pages):
+    import time  # Import the time module
+
+    start_time = time.time()  # Record the start time
     print("Generating storybook illustration...")
     print(f"Title: {title}")
     print(f"Characters: {characters}")
@@ -188,7 +220,7 @@ async def get_storybook_illustration(title, characters, cover_picture_descriptio
         response = generate_dalle_image(cover_picture_description, all_character_features, False)
         print(f"---> DEBUG: {response}")
     else:
-        response = await generate_image(cover_picture_description, all_character_features, False, seed=random_number)
+        response = generate_image(cover_picture_description, all_character_features, False, seed=random_number)
         # print(f"---> DEBUG: {response.json()}")
     
     download_image_from_response(response, "page_0_image.png")
@@ -213,26 +245,12 @@ async def get_storybook_illustration(title, characters, cover_picture_descriptio
         return False
     page_font = get_random_font()
 
-    # Generate Page Pictures
-    for page in pages:
-        if usingDallE:
-            response = generate_dalle_image(page.page_picture_description, all_character_features, True)
-            print(f"---> DEBUG: {response}")
-        else:
-            response = await generate_image(page.page_picture_description, all_character_features, True, seed)
-            print(f"--->DEBUG: {response}")
-        
-        download_image_from_response(response, f"page_{page.page_num}_image.png")
-         #Genrate the page image text image
-        generate_image_from_page_text(page.page_text, resolution, f"page_{page.page_num}_text_image.png", "images", is_cover=False, font_to_use=page_font)
-        # Merge the cover image with the combined image
-        if merge_images_horizontally("images", f"page_{page.page_num}_image.png", f"page_{page.page_num}_text_image.png", f"page_{page.page_num}_combined_image.png"):
-            #delete the cover image and the text image
-            os.remove(f"images/page_{page.page_num}_image.png")
-            os.remove(f"images/page_{page.page_num}_text_image.png")
-            print(f"Deleted images/page_{page.page_num}_image.png and images/page_{page.page_num}_text_image.png")
-        else:
-            print("Failed to merge images for page {page.page_num}.")
+    # Generate Page Pictures in parallel
+    tasks = [
+        process_page_async(page, all_character_features, resolution, page_font, seed)
+        for page in pages
+    ]
+    await asyncio.gather(*tasks)
 
     # Generate PDF
     storybook_name = title + ".pdf" # If you want to generate the images else where add filepath to the name here?
@@ -242,5 +260,8 @@ async def get_storybook_illustration(title, characters, cover_picture_descriptio
     # Clean up the images folder
     for file in os.listdir("images"):
         os.remove(os.path.join("images", file))
+    end_time = time.time()  # Record the end time
+    execution_time = end_time - start_time  # Calculate the execution time
+    print(f"Execution time for get_storybook_illustration: {execution_time:.2f} seconds")
 
     return storybook_name

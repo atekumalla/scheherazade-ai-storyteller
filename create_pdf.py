@@ -19,8 +19,8 @@ def convert_images_to_pdf(directory_name, output_pdf):
         return
     image_files = [f for f in os.listdir(image_directory) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
     print(image_files)
-    # Sort the files based on creation time, oldest first
-    image_files.sort(key=lambda x: os.path.getctime(os.path.join(image_directory, x)))
+    # Sort the files based on filename in ascending order
+    image_files.sort(key=lambda x: int(x.split('_')[1]) if x.startswith('page_') and x.split('_')[1].isdigit() else float('inf'))
     
     # Create full paths for the image files
     image_paths = [os.path.join(image_directory, img) for img in image_files]
