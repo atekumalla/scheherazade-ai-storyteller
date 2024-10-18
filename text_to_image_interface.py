@@ -167,6 +167,51 @@ def download_image_from_response(response, filename):
     else:
         print("Image URL not found in the response.")
 
+async def generate_cover_page_async(cover_picture_description, all_character_features, title, resolution, random_number):
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        return await loop.run_in_executor(
+            pool,
+            generate_cover_page,
+            cover_picture_description,
+            all_character_features,
+            title,
+            resolution,
+            random_number
+        )
+
+def generate_cover_page(cover_picture_description, all_character_features, title, resolution, random_number):
+    print(f"==> Generating cover page")
+    # Generating Cover Picture
+    if usingDallE:
+        response = generate_dalle_image(cover_picture_description, all_character_features, False)
+        print(f"---> DEBUG: {response}")
+    else:
+        response = generate_image(cover_picture_description, all_character_features, False, seed=random_number)
+        # print(f"---> DEBUG: {response.json()}")
+
+    download_image_from_response(response, "page_0_image.png")
+
+    if not usingDallE:
+        seed = random_number  # get_image_seed(response.json())
+        print(f"---> DEBUG: Using Seed: {seed} from the cover image")
+        resolution = get_image_resolution(response.json())
+        print(f"--->DEBUG: Resolution: {resolution} from the cover image")
+
+    # Generate the cover image text image
+    generate_image_from_page_text(title, resolution, "page_0_text_image.png", "images", is_cover=True)
+
+    # Merge the cover image with the combined image
+    if merge_images_horizontally("images", "page_0_image.png", "page_0_text_image.png", "page_0_combined_image.png"):
+        # delete the cover image and the text image
+        os.remove("images/page_0_image.png")
+        os.remove("images/page_0_text_image.png")
+        print(f"Deleted images/page_0_image.png and images/page_0_text_image.png")
+        return True, seed, resolution
+    else:
+        print("Failed to merge images.")
+        return False, None, None
+
 def process_page(page, all_character_features, resolution, page_font, seed):
     print(f"==> Processing page {page.page_num}")
     if usingDallE:
@@ -212,43 +257,22 @@ async def get_storybook_illustration(title, characters, cover_picture_descriptio
         features = character.character_features
         all_character_features += f"Name of Character: {character_name}:\n\nFeatures of {character_name}: {features}:\n"
 
-    resolution = "1024x1024"
+    if usingDallE:
+        resolution = "1024x1024"
+    else:
+        resolution = "800X1280"
 
     random_number = random.randint(1, 10000000)
-    #Generating Cover Picture
-    if usingDallE:
-        response = generate_dalle_image(cover_picture_description, all_character_features, False)
-        print(f"---> DEBUG: {response}")
-    else:
-        response = generate_image(cover_picture_description, all_character_features, False, seed=random_number)
-        # print(f"---> DEBUG: {response.json()}")
-    
-    download_image_from_response(response, "page_0_image.png")
-
-    if not usingDallE:
-        seed = random_number #get_image_seed(response.json())
-        print(f"---> DEBUG: Using Seed: {seed} from the cover image")
-        resolution = get_image_resolution(response.json())
-        print(f"--->DEBUG: Resolution: {resolution} from the cover image")
-
-    #Genrate the cover image text image
-    generate_image_from_page_text(title, resolution, "page_0_text_image.png", "images", is_cover=True)
-
-    # Merge the cover image with the combined image
-    if merge_images_horizontally("images", "page_0_image.png", "page_0_text_image.png", "page_0_combined_image.png"):
-        #delete the cover image and the text image
-        os.remove("images/page_0_image.png")
-        os.remove("images/page_0_text_image.png")
-        print(f"Deleted images/page_0_image.png and images/page_0_text_image.png")
-    else:
-        print("Failed to merge images.")
-        return False
     page_font = get_random_font()
+    seed = random_number
 
     # Generate Page Pictures in parallel
     tasks = [
-        process_page_async(page, all_character_features, resolution, page_font, seed)
-        for page in pages
+        generate_cover_page_async(cover_picture_description, all_character_features, title, resolution, random_number),
+        *[
+            process_page_async(page, all_character_features, resolution, page_font, seed)
+            for page in pages
+        ]
     ]
     await asyncio.gather(*tasks)
 
