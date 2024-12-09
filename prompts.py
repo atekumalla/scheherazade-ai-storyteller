@@ -71,15 +71,10 @@ IMPORTANT: Wait for user to confirm they want an illustration before generating 
 
 IMAGE_GENERATION_PROMPT = """
 
-If the user wishes to have a storybook illustration for the story, divide the story into paragraphs, where each paragraph goes onto one page of the storyboo and output a JSOn with no additional text.
+If the user wishes to have a storybook illustration for the story, divide the story into paragraphs, where each paragraph goes onto one page of the storyboos and output a JSON with no additional text.
 Generate the function call only after the user confirms.
 
-Age-based storybook Lengths:
-    For children below 3 years, keep the storybook between 3 - 5 pages long.
-    For ages 3-7, keep the storybook between 5 - 7 pages long.
-    For ages 7-12, keep it between 5 - 10 pages.
-    For ages above 12, just remember to not make the storybook longer that 15 pages.
-    Break the story into logical, easy-to-read paragraphs.
+Break the story into logical, easy-to-read paragraphs and keep the story to under 25 pages.
 
 After dividing the story into paragraphs, generate a function call to get_storybook_illustration() with the follwing arguments in a json format.
 1. Title of the story
